@@ -1,0 +1,59 @@
+name: Auto Post
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Runs every day at 12:00 UTC
+  workflow_dispatch:       # Allows manual run
+
+jobs:
+  generate-post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install openai markdown
+
+      - name: Generate blog post
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python << 'EOF'
+          import openai, os, datetime
+
+          openai.api_key = os.getenv("OPENAI_API_KEY")
+
+          today = datetime.date.today().strftime("%Y-%m-%d")
+          title = "Daily Inspiration - " + today
+
+          prompt = f"Write a 500-word engaging blog post about technology, life tips, or productivity. Make it SEO-friendly and include a title."
+
+          response = openai.Completion.create(
+              model="text-davinci-003",
+              prompt=prompt,
+              max_tokens=800
+          )
+
+          content = response.choices[0].text.strip()
+
+          post_content = f"---\ntitle: {title}\ndate: {today}\n---\n\n{content}"
+
+          file_path = f"_posts/{today}-daily-post.md"
+          os.makedirs("_posts", exist_ok=True)
+          with open(file_path, "w", encoding="utf-8") as f:
+              f.write(post_content)
+          EOF
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add _posts/
+          git commit -m "Add daily post"
+          git push
