@@ -1,0 +1,59 @@
+name: Auto Publish AI Blog Posts
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          pip install requests markdown openai
+
+      - name: Generate AI post
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python3 << 'EOF'
+          import openai, datetime, os
+
+          # Configure OpenAI API
+          openai.api_key = os.getenv("OPENAI_API_KEY")
+
+          # Generate article
+          topic = "Latest AI Technology Trends"
+          today = datetime.date.today().strftime("%Y-%m-%d")
+          prompt = f"Write a 500-word blog post about {topic}, with a clear structure, engaging tone, and no plagiarism."
+
+          response = openai.ChatCompletion.create(
+              model="gpt-3.5-turbo",
+              messages=[{"role": "user", "content": prompt}]
+          )
+
+          content = response.choices[0].message["content"]
+
+          # Save post to _posts directory
+          os.makedirs("_posts", exist_ok=True)
+          filename = f"_posts/{today}-auto-ai-post.md"
+          with open(filename, "w") as f:
+              f.write(f"---\ntitle: \"{topic}\"\ndate: {today}\n---\n\n{content}")
+          EOF
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add _posts
+          git commit -m "Auto AI post: $(date)" || echo "No changes to commit"
+          git push
