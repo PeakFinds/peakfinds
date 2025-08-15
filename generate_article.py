@@ -85,7 +85,9 @@ def make_header_image(title, outpath):
     lines = textwrap.wrap(title, width=28)
     y = 120
     for line in lines:
-        w,h = draw.textsize(line, font=font)
+       bbox = draw.textbbox((0, 0), line, font=font)
+w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+
         draw.text(((W-w)/2, y), line, fill=(20,20,60), font=font)
         y += h + 8
     footer = "ErgoStudentGear"
